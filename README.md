@@ -93,4 +93,23 @@
    - タスク名
    - ステータス選択
 
-※ 本プロジェクトは学習・ポートフォリオ目的で作成しています。
+---
+
+## セットアップ（予定）
+※ 実装完了後に更新予定
+
+```bash
+# リポジトリをクローン
+git clone git@github.com:norviaio/creator-flow.git
+cd creator-flow
+
+# 依存関係のインストール
+npm install
+
+# 環境変数の設定（例）
+# .env.local を作成し、Supabaseのキーを設定
+# NEXT_PUBLIC_SUPABASE_URL=xxxxx
+# NEXT_PUBLIC_SUPABASE_ANON_KEY=xxxxx
+
+# 開発サーバー起動
+npm run dev
