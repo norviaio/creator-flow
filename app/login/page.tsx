@@ -2,13 +2,18 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { supabase } from "../../lib/supabase/client";
+import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState<string>("");
+
   const emailOk = useMemo(() => {
-    // MVPなので軽いチェックだけ（厳密なRFCは不要）
     return email.trim().length > 3 && email.includes("@");
   }, [email]);
 
@@ -16,12 +21,69 @@ export default function LoginPage() {
     return password.length >= 8;
   }, [password]);
 
-  const canSubmit = emailOk && passwordOk;
+  const canSubmit = emailOk && passwordOk && !loading;
 
-  const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const onLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // いまはUIだけ。次回ここをSupabase Authにつなぐ
-    alert("次回ここでSupabaseログインを実装します！");
+    if (!canSubmit) return;
+
+    setLoading(true);
+    setMessage("");
+    setEmail("");
+    setPassword("");
+
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+
+      if (error) {
+        setMessage(`ログイン失敗：${error.message}`);
+        return;
+      }
+
+      setMessage("ログイン成功！");
+      console.log("session:", data.session);
+
+      router.push("/projects");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onSignUpTest = async () => {
+    if (!emailOk || !passwordOk || loading) return;
+
+    setLoading(true);
+    setMessage("");
+    setEmail("");
+    setPassword("");
+
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: email.trim(),
+        password,
+      });
+
+      if (error) {
+        setMessage(`登録失敗：${error.message}`);
+        return;
+      }
+
+      // Email確認がONだと「確認メール送ったよ」になることがある
+      if (data.session) {
+        setMessage("登録＆ログイン成功！");
+      } else {
+        setMessage(
+          "登録OK！メール確認が必要な設定かも（Supabase側で確認してね）"
+        );
+      }
+
+      console.log("signUp:", data);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -37,12 +99,12 @@ export default function LoginPage() {
 
           <h1 className="text-3xl font-bold tracking-tight">Login</h1>
           <p className="text-sm text-slate-600">
-            creator-flow にログインします（MVP：メール/パスワード）。
+            creator-flow にログインします（Supabase Auth）。
           </p>
         </header>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <form onSubmit={onSubmit} className="space-y-4">
+          <form onSubmit={onLogin} className="space-y-4">
             <Field label="Email">
               <input
                 type="email"
@@ -81,28 +143,35 @@ export default function LoginPage() {
               disabled={!canSubmit}
               className="w-full rounded-xl bg-slate-900 px-4 py-3 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Login
+              {loading ? "処理中..." : "Login"}
             </button>
 
-            <div className="flex items-center justify-between pt-2 text-xs text-slate-600">
+            <div className="flex flex-col gap-2 pt-2 text-xs text-slate-600">
               <button
                 type="button"
-                className="hover:text-slate-900"
-                onClick={() =>
-                  alert("次回：パスワードリセットを入れるならここ")
-                }
+                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                disabled={!emailOk || !passwordOk || loading}
+                onClick={onSignUpTest}
               >
-                パスワードを忘れた
+                {loading ? "処理中..." : "テスト用に新規登録（Sign up）"}
               </button>
-              <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-1">
-                Supabase Auth（予定）
+
+              {message ? (
+                <p className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                  {message}
+                </p>
+              ) : null}
+
+              <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-xs">
+                Supabase Auth
               </span>
             </div>
           </form>
         </div>
 
         <footer className="mt-8 text-xs text-slate-500">
-          ※ 認証ロジックは次回実装します（いまは画面のみ）
+          ※
+          今日はログイン接続まで。次はログイン後の遷移とセッション管理を入れる。
         </footer>
       </div>
     </main>

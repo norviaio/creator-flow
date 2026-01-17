@@ -1,6 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { supabase } from "../../lib/supabase/client";
 
 type Project = {
   id: string;
@@ -31,8 +34,38 @@ const mockProjects: Project[] = [
 ];
 
 export default function ProjectsPage() {
+  const router = useRouter();
+
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      const email = data.user?.email ?? null;
+      setUserEmail(data.user?.email ?? null);
+
+      // ページ保護
+      if (!email) {
+        router.push("/login");
+      }
+    });
+  }, []);
+
+  const onLogout = async () => {
+    await supabase.auth.signOut();
+    router.push("/login");
+  };
+
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
+      {userEmail ? (
+        <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-700">
+          ログイン中：{userEmail}
+        </div>
+      ) : (
+        <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-600">
+          未ログイン
+        </div>
+      )}
       <div className="mx-auto max-w-5xl px-6 py-12">
         <header className="mb-8 flex items-center justify-between">
           <div>
@@ -42,12 +75,22 @@ export default function ProjectsPage() {
             </p>
           </div>
 
-          <Link
-            href="/projects/new"
-            className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white"
-          >
-            + 新規プロジェクト
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/projects/new"
+              className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white"
+            >
+              + 新規プロジェクト
+            </Link>
+
+            <button
+              type="button"
+              onClick={onLogout}
+              className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            >
+              Logout
+            </button>
+          </div>
         </header>
 
         <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
