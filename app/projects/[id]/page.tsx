@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import { supabase } from "../../../lib/supabase/client";
 
 type Project = {
   id: string;
@@ -66,6 +67,23 @@ export default function ProjectDetailPage() {
 
   const [filter, setFilter] = useState<TaskStatus | "all">("all");
 
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const router = useRouter();
+
+  useEffect(() => {
+    const run = async () => {
+      const { data } = await supabase.auth.getUser();
+      const email = data.user?.email ?? null;
+      setUserEmail(email);
+
+      if (!email) {
+        router.push("/login");
+      }
+    };
+
+    run();
+  }, [router]);
+
   const tasks = useMemo(() => {
     const all = mockTasks.filter((t) => t.projectId === projectId);
     if (filter === "all") return all;
@@ -101,6 +119,11 @@ export default function ProjectDetailPage() {
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
+      {userEmail ? (
+        <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-700">
+          ログイン中：{userEmail}
+        </div>
+      ) : null}
       <div className="mx-auto max-w-4xl px-6 py-12">
         <header className="mb-8">
           <Link

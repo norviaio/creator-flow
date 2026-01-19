@@ -48,7 +48,7 @@ export default function ProjectsPage() {
         router.push("/login");
       }
     });
-  }, []);
+  }, [router]);
 
   const onLogout = async () => {
     await supabase.auth.signOut();
