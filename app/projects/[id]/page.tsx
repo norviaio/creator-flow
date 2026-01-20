@@ -44,7 +44,6 @@ const mockProjects: Project[] = [
     status: "completed",
   },
 ];
-*/
 const mockTasks: Task[] = [
   { id: "t1", projectId: "1", title: "素材の収集", status: "backlog" },
   { id: "t2", projectId: "1", title: "カット編集", status: "in_progress" },
@@ -54,6 +53,7 @@ const mockTasks: Task[] = [
   { id: "t6", projectId: "2", title: "下書き", status: "backlog" },
   { id: "t7", projectId: "3", title: "企画案出し", status: "done" },
 ];
+*/
 
 const statusLabels: Record<TaskStatus, string> = {
   backlog: "backlog",
@@ -75,6 +75,11 @@ export default function ProjectDetailPage() {
   const [project, setProject] = useState<Project | null>(null);
   const [loadingProject, setLoadingProject] = useState(true);
   const [projectError, setProjectError] = useState<string | null>(null);
+
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loadingTasks, setLoadingTasks] = useState(true);
+  const [tasksError, setTasksError] = useState<string | null>(null);
+
   const router = useRouter();
 
   useEffect(() => {
@@ -116,11 +121,58 @@ export default function ProjectDetailPage() {
 
       setProject((data as Project) ?? null);
       setLoadingProject(false);
+
+      setLoadingTasks(true);
+      setTasksError(null);
+
+      const { data: taskData, error: taskError } = await supabase
+        .from("tasks")
+        .select("id,project_id,title,status")
+        .eq("project_id", projectId)
+        .order("created_at", { ascending: true });
+
+      if (taskError) {
+        setTasksError(taskError.message);
+        setTasks([]);
+        setLoadingTasks(false);
+        return;
+      }
+
+      const normalized = (taskData ?? []).map((t) => ({
+        id: t.id,
+        projectId: t.project_id,
+        title: t.title,
+        status: t.status,
+      })) as Task[];
+
+      setTasks(normalized);
+      setLoadingTasks(false);
     };
 
     run();
   }, [router, projectId]);
 
+  const filteredTasks = useMemo(() => {
+    const all = tasks;
+    if (filter === "all") return all;
+    return all.filter((t) => t.status === filter);
+  }, [tasks, filter]);
+
+  const counts = useMemo(() => {
+    const all = tasks;
+    const base = {
+      all: all.length,
+      backlog: 0,
+      in_progress: 0,
+      review: 0,
+      done: 0,
+    };
+    for (const t of all) base[t.status] += 1;
+    return base;
+  }, [tasks]);
+
+  // TODO: mock削除
+  /*
   const tasks = useMemo(() => {
     const all = mockTasks.filter((t) => t.projectId === projectId);
     if (filter === "all") return all;
@@ -139,7 +191,7 @@ export default function ProjectDetailPage() {
     for (const t of all) base[t.status] += 1;
     return base;
   }, [projectId]);
-
+*/
   if (loadingProject) {
     return (
       <main className="min-h-screen bg-slate-50 px-6 py-12">
@@ -255,26 +307,20 @@ export default function ProjectDetailPage() {
           </div>
 
           <div className="mt-5">
-            {tasks.length === 0 ? (
-              <p className="text-sm text-slate-500">
-                該当するタスクはありません。
-              </p>
+            {loadingTasks ? (
+              <p className="text-sm text-slate-500">タスク読み込み中...</p>
+            ) : tasksError ? (
+              <p className="text-sm text-rose-600">エラー：{tasksError}</p>
+            ) : filteredTasks.length === 0 ? (
+              <p className="text-sm text-slate-500">タスクはまだありません。</p>
             ) : (
-              <ul className="space-y-3">
-                {tasks.map((task) => (
-                  <li
-                    key={task.id}
-                    className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="truncate font-medium">{task.title}</p>
-                        <p className="mt-1 text-xs text-slate-500">
-                          id: {task.id}
-                        </p>
-                      </div>
-                      <TaskStatusBadge status={task.status} />
-                    </div>
+              <ul className="space-y-2">
+                {filteredTasks.map((task) => (
+                  <li key={task.id} className="rounded-lg border px-3 py-2">
+                    <span className="font-medium">{task.title}</span>
+                    <span className="ml-2 text-xs text-slate-500">
+                      {statusLabels[task.status]}
+                    </span>
                   </li>
                 ))}
               </ul>
