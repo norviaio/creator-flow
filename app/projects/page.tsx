@@ -75,29 +75,6 @@ export default function ProjectsPage() {
     fetchProjects();
   }, []);
 
-  useEffect(() => {
-    const fetchProjects = async () => {
-      setLoading(true);
-      setError(null);
-
-      const { data, error } = await supabase
-        .from("projects")
-        .select("id,title,description,status")
-        .order("created_at", { ascending: false });
-
-      if (error) {
-        setError(error.message);
-        setLoading(false);
-        return;
-      }
-
-      setProjects((data ?? []) as Project[]);
-      setLoading(false);
-    };
-
-    fetchProjects();
-  }, []);
-
   const onLogout = async () => {
     await supabase.auth.signOut();
     router.push("/login");
