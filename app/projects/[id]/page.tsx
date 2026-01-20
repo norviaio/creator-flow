@@ -77,6 +77,17 @@ export default function ProjectDetailPage() {
   const [loadingProject, setLoadingProject] = useState(true);
   const [projectError, setProjectError] = useState<string | null>(null);
 
+  type ProjectStatus = "active" | "completed";
+
+  //プロジェクト編集
+  const [isEditingProject, setIsEditingProject] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editStatus, setEditStatus] = useState<ProjectStatus>("active");
+
+  const [savingProject, setSavingProject] = useState(false);
+  const [projectSaveError, setProjectSaveError] = useState<string | null>(null);
+
   //タスク表示
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loadingTasks, setLoadingTasks] = useState(true);
@@ -140,6 +151,41 @@ export default function ProjectDetailPage() {
     setDeletingTaskId(null);
   };
 
+  //プロジェクト編集
+  const saveProject = async () => {
+    if (!project) return;
+
+    if (!editTitle.trim()) {
+      setProjectSaveError("タイトルを入力してください。");
+      return;
+    }
+
+    setSavingProject(true);
+    setProjectSaveError(null);
+
+    const { data, error } = await supabase
+      .from("projects")
+      .update({
+        title: editTitle.trim(),
+        description:
+          editDescription.trim() === "" ? null : editDescription.trim(),
+        status: editStatus,
+      })
+      .eq("id", project.id)
+      .select("id,title,description,status,user_id")
+      .single();
+
+    if (error) {
+      setProjectSaveError(error.message);
+      setSavingProject(false);
+      return;
+    }
+
+    setProject(data);
+    setIsEditingProject(false);
+    setSavingProject(false);
+  };
+
   useEffect(() => {
     const run = async () => {
       // 1) ログイン確認
@@ -177,7 +223,16 @@ export default function ProjectDetailPage() {
         return;
       }
 
-      setProject((data as Project) ?? null);
+      const projectData = data as Project | null;
+
+      setProject(projectData);
+
+      if (data) {
+        setEditTitle(data.title ?? "");
+        setEditDescription(data.description ?? "");
+        setEditStatus((data.status ?? "active") as ProjectStatus);
+      }
+
       setLoadingProject(false);
 
       // 3) task取得
@@ -304,16 +359,97 @@ export default function ProjectDetailPage() {
           </Link>
 
           <div className="mt-4 flex items-start justify-between gap-4">
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight">
-                {project.title}
-              </h1>
-              {project.description ? (
-                <p className="mt-2 text-slate-600">{project.description}</p>
-              ) : null}
+            <div className="min-w-0 flex-1">
+              {isEditingProject ? (
+                <div className="space-y-3">
+                  <input
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    placeholder="プロジェクト名"
+                    className="w-full rounded-lg border px-3 py-2 text-base font-semibold"
+                  />
+
+                  <textarea
+                    value={editDescription}
+                    onChange={(e) => setEditDescription(e.target.value)}
+                    placeholder="説明（任意）"
+                    className="w-full rounded-lg border px-3 py-2 text-sm"
+                    rows={3}
+                  />
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-slate-600">ステータス</span>
+                    <select
+                      value={editStatus}
+                      onChange={(e) =>
+                        setEditStatus(e.target.value as ProjectStatus)
+                      }
+                      className="rounded-lg border px-2 py-1 text-sm"
+                    >
+                      <option value="active">active</option>
+                      <option value="completed">completed</option>
+                    </select>
+                  </div>
+
+                  {projectSaveError ? (
+                    <p className="text-sm text-rose-600">
+                      エラー：{projectSaveError}
+                    </p>
+                  ) : null}
+                </div>
+              ) : (
+                <>
+                  <h1 className="truncate text-3xl font-bold tracking-tight">
+                    {project.title}
+                  </h1>
+                  {project.description ? (
+                    <p className="mt-2 text-slate-600">{project.description}</p>
+                  ) : null}
+                </>
+              )}
             </div>
 
-            <StatusBadge status={project.status} />
+            <div className="shrink-0">
+              {isEditingProject ? (
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditTitle(project.title ?? "");
+                      setEditDescription(project.description ?? "");
+                      setEditStatus(
+                        (project.status ?? "active") as ProjectStatus
+                      );
+                      setProjectSaveError(null);
+                      setIsEditingProject(false);
+                    }}
+                    className="rounded-lg border px-3 py-2 text-sm"
+                  >
+                    キャンセル
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={saveProject}
+                    disabled={savingProject}
+                    className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-50"
+                  >
+                    保存
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <StatusBadge status={project.status} />
+                  <button
+                    type="button"
+                    onClick={() => setIsEditingProject(true)}
+                    className="rounded-lg border px-3 py-2 text-sm"
+                  >
+                    編集
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 
