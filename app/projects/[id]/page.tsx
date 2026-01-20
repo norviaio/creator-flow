@@ -99,8 +99,13 @@ export default function ProjectDetailPage() {
   const [updatingTaskId, setUpdatingTaskId] = useState<string | null>(null);
   const [updateError, setUpdateError] = useState<string | null>(null);
 
+  //タスク削除
+  const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
   const router = useRouter();
 
+  //タスク編集
   const updateTaskStatus = async (taskId: string, nextStatus: TaskStatus) => {
     setUpdateError(null);
 
@@ -122,6 +127,24 @@ export default function ProjectDetailPage() {
     }
 
     setUpdatingTaskId(null);
+  };
+
+  //タスク削除
+  const deleteTask = async (taskId: string) => {
+    setDeleteError(null);
+    setDeletingTaskId(taskId);
+
+    const { error } = await supabase.from("tasks").delete().eq("id", taskId);
+
+    if (error) {
+      setDeleteError(error.message);
+      setDeletingTaskId(null);
+      return;
+    }
+
+    // 成功したら即反映
+    setTasks((cur) => cur.filter((t) => t.id !== taskId));
+    setDeletingTaskId(null);
   };
 
   useEffect(() => {
@@ -436,6 +459,12 @@ export default function ProjectDetailPage() {
             </p>
           ) : null}
 
+          {deleteError ? (
+            <p className="mb-2 text-sm text-rose-600">
+              削除エラー：{deleteError}
+            </p>
+          ) : null}
+
           <div className="mt-5">
             {loadingTasks ? (
               <p className="text-sm text-slate-500">タスク読み込み中...</p>
@@ -452,24 +481,33 @@ export default function ProjectDetailPage() {
                         <p className="truncate font-medium">{task.title}</p>
                       </div>
 
-                      <select
-                        value={task.status}
-                        onChange={(e) =>
-                          updateTaskStatus(
-                            task.id,
-                            e.target.value as TaskStatus
-                          )
-                        }
-                        disabled={updatingTaskId === task.id}
-                        className="rounded-lg border px-2 py-1 text-sm"
-                      >
-                        <option value="backlog">{statusLabels.backlog}</option>
-                        <option value="in_progress">
-                          {statusLabels.in_progress}
-                        </option>
-                        <option value="review">{statusLabels.review}</option>
-                        <option value="done">{statusLabels.done}</option>
-                      </select>
+                      <div className="flex items-center gap-2">
+                        <select
+                          value={task.status}
+                          onChange={(e) =>
+                            updateTaskStatus(
+                              task.id,
+                              e.target.value as TaskStatus
+                            )
+                          }
+                          disabled={updatingTaskId === task.id}
+                          className="rounded-lg border px-2 py-1 text-sm"
+                        >
+                          <option value="backlog">Backlog</option>
+                          <option value="in_progress">In Progress</option>
+                          <option value="review">Review</option>
+                          <option value="done">Done</option>
+                        </select>
+
+                        <button
+                          type="button"
+                          onClick={() => deleteTask(task.id)}
+                          disabled={deletingTaskId === task.id}
+                          className="rounded-lg border px-2 py-1 text-sm text-rose-600 hover:bg-rose-50 disabled:opacity-50"
+                        >
+                          削除
+                        </button>
+                      </div>
                     </div>
                   </li>
                 ))}
