@@ -99,13 +99,17 @@ export default function ProjectDetailPage() {
   const [createError, setCreateError] = useState<string | null>(null);
   const [showTaskForm, setShowTaskForm] = useState(false);
 
-  //タスク編集
+  //タスクステータス編集
   const [updatingTaskId, setUpdatingTaskId] = useState<string | null>(null);
   const [updateError, setUpdateError] = useState<string | null>(null);
 
   //タスク削除
   const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  //タスク名編集
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [editTaskTitle, setEditTaskTitle] = useState("");
 
   const router = useRouter();
 
@@ -146,12 +150,39 @@ export default function ProjectDetailPage() {
       return;
     }
 
-    // 成功したら即反映
     setTasks((cur) => cur.filter((t) => t.id !== taskId));
     setDeletingTaskId(null);
   };
 
-  //プロジェクト編集
+  //タスク名編集
+  const startEditTask = (task: Task) => {
+    setEditingTaskId(task.id);
+    setEditTaskTitle(task.title);
+  };
+  const saveTaskTitle = async (taskId: string) => {
+    if (!editTaskTitle.trim()) return;
+
+    const { error } = await supabase
+      .from("tasks")
+      .update({ title: editTaskTitle.trim() })
+      .eq("id", taskId);
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    setTasks((cur) =>
+      cur.map((t) =>
+        t.id === taskId ? { ...t, title: editTaskTitle.trim() } : t
+      )
+    );
+
+    setEditingTaskId(null);
+    setEditTaskTitle("");
+  };
+
+  //プロジェクト保存
   const saveProject = async () => {
     if (!project) return;
 
@@ -607,7 +638,41 @@ export default function ProjectDetailPage() {
                   <li key={task.id} className="rounded-lg border px-3 py-2">
                     <div className="flex items-center justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="truncate font-medium">{task.title}</p>
+                        {editingTaskId === task.id ? (
+                          <div className="flex items-center gap-2">
+                            <input
+                              value={editTaskTitle}
+                              onChange={(e) => setEditTaskTitle(e.target.value)}
+                              className="w-full rounded-lg border px-2 py-1 text-sm"
+                              autoFocus
+                            />
+                            <button
+                              type="button"
+                              onClick={() => saveTaskTitle(task.id)}
+                              className="rounded border px-2 py-1 text-xs"
+                            >
+                              保存
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingTaskId(null);
+                                setEditTaskTitle("");
+                              }}
+                              className="rounded border px-2 py-1 text-xs"
+                            >
+                              キャンセル
+                            </button>
+                          </div>
+                        ) : (
+                          <p
+                            className="cursor-pointer truncate font-medium"
+                            onClick={() => startEditTask(task)}
+                            title="クリックして編集"
+                          >
+                            {task.title}
+                          </p>
+                        )}
                       </div>
 
                       <div className="flex items-center gap-2">
