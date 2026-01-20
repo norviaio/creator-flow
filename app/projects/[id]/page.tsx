@@ -8,8 +8,9 @@ import { supabase } from "../../../lib/supabase/client";
 type Project = {
   id: string;
   title: string;
-  description?: string;
+  description: string | null;
   status: "active" | "completed";
+  user_id: string;
 };
 
 type TaskStatus = "backlog" | "in_progress" | "review" | "done";
@@ -63,26 +64,59 @@ export default function ProjectDetailPage() {
   const params = useParams();
   const projectId = params.id as string;
 
-  const project = mockProjects.find((p) => p.id === projectId);
+  //const project = mockProjects.find((p) => p.id === projectId);
 
   const [filter, setFilter] = useState<TaskStatus | "all">("all");
-
   const [userEmail, setUserEmail] = useState<string | null>(null);
+
+  const [project, setProject] = useState<Project | null>(null);
+  const [loadingProject, setLoadingProject] = useState(true);
+  const [projectError, setProjectError] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
     const run = async () => {
-      const { data } = await supabase.auth.getUser();
-      const email = data.user?.email ?? null;
+      // 1) ログイン確認
+      const { data: userData, error: userError } =
+        await supabase.auth.getUser();
+
+      const email = userData.user?.email ?? null;
       setUserEmail(email);
 
-      if (!email) {
-        router.push("/login");
+      if (userError) {
+        setProjectError(userError.message);
+        setLoadingProject(false);
+        return;
       }
+
+      if (!userData.user) {
+        router.push("/login");
+        return;
+      }
+
+      // 2) project取得（RLSにより自分のものだけ取れる）
+      setLoadingProject(true);
+      setProjectError(null);
+
+      const { data, error } = await supabase
+        .from("projects")
+        .select("id,title,description,status,user_id")
+        .eq("id", projectId)
+        .maybeSingle();
+
+      if (error) {
+        setProjectError(error.message);
+        setProject(null);
+        setLoadingProject(false);
+        return;
+      }
+
+      setProject((data as Project) ?? null);
+      setLoadingProject(false);
     };
 
     run();
-  }, [router]);
+  }, [router, projectId]);
 
   const tasks = useMemo(() => {
     const all = mockTasks.filter((t) => t.projectId === projectId);
@@ -102,6 +136,28 @@ export default function ProjectDetailPage() {
     for (const t of all) base[t.status] += 1;
     return base;
   }, [projectId]);
+
+  if (loadingProject) {
+    return (
+      <main className="min-h-screen bg-slate-50 px-6 py-12">
+        <p className="text-slate-600">読み込み中...</p>
+      </main>
+    );
+  }
+
+  if (projectError) {
+    return (
+      <main className="min-h-screen bg-slate-50 px-6 py-12">
+        <p className="text-rose-600">エラー：{projectError}</p>
+        <Link
+          href="/projects"
+          className="mt-4 inline-block text-sm text-slate-700"
+        >
+          ← Projectsへ戻る
+        </Link>
+      </main>
+    );
+  }
 
   if (!project) {
     return (
