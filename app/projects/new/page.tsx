@@ -1,32 +1,63 @@
 "use client";
 
-import Link from "next/link";
+import type React from "react";
 import { useMemo, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { supabase } from "../../../lib/supabase/client";
 
 type ProjectStatus = "active" | "completed";
 
 export default function NewProjectPage() {
+  const router = useRouter();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [status, setStatus] = useState<ProjectStatus>("active");
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState<string>("");
 
   const titleOk = useMemo(() => title.trim().length >= 2, [title]);
-  const canSubmit = titleOk;
+  const canSubmit = titleOk && !loading;
 
-  const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!canSubmit) return;
 
-    // 次回：ここをSupabase insertに置き換える
-    alert(
-      [
-        "次回ここでSupabaseに保存します！",
-        "",
-        `title: ${title}`,
-        `status: ${status}`,
-        `description: ${description || "(なし)"}`,
-      ].join("\n")
-    );
+    setLoading(true);
+    setMessage("");
+
+    try {
+      const { data: userData, error: userError } =
+        await supabase.auth.getUser();
+      if (userError) {
+        setMessage(`ユーザー取得エラー：${userError.message}`);
+        return;
+      }
+
+      const user = userData.user;
+      if (!user) {
+        setMessage("未ログインです。ログインしてください。");
+        router.push("/login");
+        return;
+      }
+
+      const { error } = await supabase.from("projects").insert({
+        user_id: user.id,
+        title: title.trim(),
+        description: description.trim() === "" ? null : description.trim(),
+        status,
+      });
+
+      if (error) {
+        setMessage(`保存エラー：${error.message}`);
+        return;
+      }
+
+      setMessage("作成しました！");
+      router.push("/projects");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -108,6 +139,11 @@ export default function NewProjectPage() {
               ※ 現在はUIのみ。次回 Supabase（projects テーブル）に保存します。
             </p>
           </form>
+          {message ? (
+            <p className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700">
+              {message}
+            </p>
+          ) : null}
         </div>
       </div>
     </main>
