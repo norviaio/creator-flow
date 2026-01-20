@@ -11,6 +11,8 @@ type Project = {
   description: string | null;
   status: "active" | "completed";
 };
+
+// TODO: mockProjects削除（詳細ページの実データ化が安定したら）
 /*
 const mockProjects: Project[] = [
   {

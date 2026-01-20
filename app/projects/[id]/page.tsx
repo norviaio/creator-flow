@@ -22,6 +22,7 @@ type Task = {
   status: TaskStatus;
 };
 
+// TODO: mockProjects削除（詳細ページの実データ化が安定したら）
 /* 
 const mockProjects: Project[] = [
   {
@@ -65,6 +66,7 @@ export default function ProjectDetailPage() {
   const params = useParams();
   const projectId = params.id as string;
 
+  // TODO: mockProjects削除（詳細ページの実データ化が安定したら）
   //const project = mockProjects.find((p) => p.id === projectId);
 
   const [filter, setFilter] = useState<TaskStatus | "all">("all");
