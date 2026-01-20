@@ -8,7 +8,7 @@ import { supabase } from "../../lib/supabase/client";
 type Project = {
   id: string;
   title: string;
-  description?: string;
+  description: string | null;
   status: "active" | "completed";
 };
 
@@ -35,8 +35,10 @@ const mockProjects: Project[] = [
 
 export default function ProjectsPage() {
   const router = useRouter();
-
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -49,6 +51,52 @@ export default function ProjectsPage() {
       }
     });
   }, [router]);
+
+  useEffect(() => {
+    const fetchProjects = async () => {
+      setLoading(true);
+      setError(null);
+
+      const { data, error } = await supabase
+        .from("projects")
+        .select("id,title,description,status")
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        setError(error.message);
+        setLoading(false);
+        return;
+      }
+
+      setProjects((data ?? []) as Project[]);
+      setLoading(false);
+    };
+
+    fetchProjects();
+  }, []);
+
+  useEffect(() => {
+    const fetchProjects = async () => {
+      setLoading(true);
+      setError(null);
+
+      const { data, error } = await supabase
+        .from("projects")
+        .select("id,title,description,status")
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        setError(error.message);
+        setLoading(false);
+        return;
+      }
+
+      setProjects((data ?? []) as Project[]);
+      setLoading(false);
+    };
+
+    fetchProjects();
+  }, []);
 
   const onLogout = async () => {
     await supabase.auth.signOut();
@@ -93,26 +141,38 @@ export default function ProjectsPage() {
           </div>
         </header>
 
-        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {mockProjects.map((project) => (
-            <Link
-              key={project.id}
-              href={`/projects/${project.id}`}
-              className="block rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md"
-            >
-              <div className="mb-2 flex items-center justify-between">
-                <h2 className="font-semibold">{project.title}</h2>
-                <StatusBadge status={project.status} />
-              </div>
+        {loading ? (
+          <p className="text-sm text-slate-500">読み込み中...</p>
+        ) : error ? (
+          <p className="text-sm text-rose-600">エラー：{error}</p>
+        ) : projects.length === 0 ? (
+          <p className="text-sm text-slate-500">
+            プロジェクトはまだありません。
+          </p>
+        ) : (
+          <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {projects.map((project) => (
+              <Link
+                key={project.id}
+                href={`/projects/${project.id}`}
+                className="block rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:shadow-md"
+              >
+                <div className="mb-2 flex items-center justify-between">
+                  <h2 className="font-semibold">{project.title}</h2>
+                  <StatusBadge status={project.status} />
+                </div>
 
-              {project.description ? (
-                <p className="text-sm text-slate-600">{project.description}</p>
-              ) : (
-                <p className="text-sm text-slate-400">説明はありません</p>
-              )}
-            </Link>
-          ))}
-        </section>
+                {project.description ? (
+                  <p className="text-sm text-slate-600">
+                    {project.description}
+                  </p>
+                ) : (
+                  <p className="text-sm text-slate-400">説明はありません</p>
+                )}
+              </Link>
+            ))}
+          </section>
+        )}
       </div>
     </main>
   );
