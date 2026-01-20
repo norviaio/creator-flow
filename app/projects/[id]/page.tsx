@@ -22,6 +22,7 @@ type Task = {
   status: TaskStatus;
 };
 
+/* 
 const mockProjects: Project[] = [
   {
     id: "1",
@@ -42,7 +43,7 @@ const mockProjects: Project[] = [
     status: "completed",
   },
 ];
-
+*/
 const mockTasks: Task[] = [
   { id: "t1", projectId: "1", title: "素材の収集", status: "backlog" },
   { id: "t2", projectId: "1", title: "カット編集", status: "in_progress" },

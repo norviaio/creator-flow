@@ -11,7 +11,7 @@ type Project = {
   description: string | null;
   status: "active" | "completed";
 };
-
+/*
 const mockProjects: Project[] = [
   {
     id: "1",
@@ -32,7 +32,7 @@ const mockProjects: Project[] = [
     status: "completed",
   },
 ];
-
+*/
 export default function ProjectsPage() {
   const router = useRouter();
   const [userEmail, setUserEmail] = useState<string | null>(null);
