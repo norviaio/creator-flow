@@ -503,36 +503,6 @@ function StatusBadge({ status }: { status: "active" | "completed" }) {
   );
 }
 
-function TaskStatusBadge({ status }: { status: TaskStatus }) {
-  const base = "rounded-full px-2 py-1 text-xs font-medium";
-  if (status === "done") {
-    return (
-      <span className={`${base} bg-slate-200 text-slate-700`}>
-        {statusLabels[status]}
-      </span>
-    );
-  }
-  if (status === "review") {
-    return (
-      <span className={`${base} bg-amber-100 text-amber-700`}>
-        {statusLabels[status]}
-      </span>
-    );
-  }
-  if (status === "in_progress") {
-    return (
-      <span className={`${base} bg-sky-100 text-sky-700`}>
-        {statusLabels[status]}
-      </span>
-    );
-  }
-  return (
-    <span className={`${base} bg-slate-100 text-slate-700`}>
-      {statusLabels[status]}
-    </span>
-  );
-}
-
 function FilterButton({
   active,
   children,
