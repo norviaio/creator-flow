@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase/client";
+import { useRequireAuth } from "@/lib/auth/requireAuth";
 
 type Project = {
   id: string;
@@ -42,17 +43,6 @@ export default function ProjectsPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      const email = data.user?.email ?? null;
-
-      // ページ保護
-      if (!email) {
-        router.push("/login");
-      }
-    });
-  }, [router]);
-
-  useEffect(() => {
     const fetchProjects = async () => {
       setLoading(true);
       setError(null);
@@ -79,6 +69,13 @@ export default function ProjectsPage() {
     await supabase.auth.signOut();
     router.push("/login");
   };
+
+  //ログイン確認
+  const { ready } = useRequireAuth();
+
+  if (!ready) {
+    return <div className="px-6 py-6 text-sm text-slate-600">Loading...</div>;
+  }
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">

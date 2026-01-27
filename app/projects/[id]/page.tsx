@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../../../lib/supabase/client";
+import { useRequireAuth } from "@/lib/auth/requireAuth";
+
 
 type Project = {
   id: string;
@@ -218,20 +220,6 @@ export default function ProjectDetailPage() {
 
   useEffect(() => {
     const run = async () => {
-      // 1) ログイン確認
-      const { data: userData, error: userError } =
-        await supabase.auth.getUser();
-
-      if (userError) {
-        setProjectError(userError.message);
-        setLoadingProject(false);
-        return;
-      }
-
-      if (!userData.user) {
-        router.push("/login");
-        return;
-      }
 
       // 2) project取得（RLSにより自分のものだけ取れる）
       setLoadingProject(true);
@@ -311,6 +299,13 @@ export default function ProjectDetailPage() {
     for (const t of all) base[t.status] += 1;
     return base;
   }, [tasks]);
+
+  //ログイン確認
+  const { ready } = useRequireAuth();
+
+  if (!ready) {
+    return <div className="px-6 py-6 text-sm text-slate-600">Loading...</div>;
+  }
 
   // TODO: mock削除
   /*

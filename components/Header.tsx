@@ -1,35 +1,32 @@
 "use client";
 
-import { supabase } from "@/lib/supabase/client";
-
 type HeaderProps = {
   userEmail?: string | null;
+  onLogout?: () => void;
+  showLogout?: boolean;
 };
 
-export function Header({ userEmail }: HeaderProps) {
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    // 画面遷移は各ページの保護ロジック（未ログイン→/login）に任せる
-  };
-
+export function Header({
+  userEmail,
+  onLogout,
+  showLogout = true,
+}: HeaderProps) {
   return (
     <header className="flex h-16 items-center justify-between border-b border-gray-200 bg-white px-6">
       <div className="text-lg font-semibold text-gray-900">creator-flow</div>
 
       <div className="flex items-center gap-3 text-sm">
-        {userEmail ? (
-          <span className="text-gray-600">{userEmail}</span>
-        ) : (
-          <span className="text-gray-400">Guest</span>
-        )}
+        {userEmail && <span className="text-gray-600">{userEmail}</span>}
 
-        <button
-          type="button"
-          onClick={handleLogout}
-          className="rounded-md px-2 py-1 text-gray-900 hover:bg-gray-50 hover:underline"
-        >
-          Logout
-        </button>
+        {showLogout && onLogout && (
+          <button
+            type="button"
+            onClick={onLogout}
+            className="rounded-md px-2 py-1 text-gray-900 hover:bg-gray-50 hover:underline"
+          >
+            Logout
+          </button>
+        )}
       </div>
     </header>
   );

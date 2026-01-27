@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function Home() {
   return (
     <main className="min-h-screen bg-white text-slate-900">
@@ -24,6 +26,30 @@ export default function Home() {
             <Badge>Supabase</Badge>
             <Badge>PostgreSQL</Badge>
             <Badge>Vercel</Badge>
+          </div>
+
+          {/* ✅ ここ追加：導線 */}
+          <div className="flex flex-wrap gap-3 pt-4">
+            <Link
+              href="/projects"
+              className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
+            >
+              Projects を開く
+            </Link>
+
+            <Link
+              href="/projects/new"
+              className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-900 hover:bg-slate-50"
+            >
+              新規 Project
+            </Link>
+
+            <Link
+              href="/login"
+              className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            >
+              ログイン
+            </Link>
           </div>
         </header>
 

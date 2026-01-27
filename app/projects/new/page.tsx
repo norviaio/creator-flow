@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabase/client";
+import { useRequireAuth } from "@/lib/auth/requireAuth";
 
 type ProjectStatus = "active" | "completed";
 
@@ -59,6 +60,13 @@ export default function NewProjectPage() {
       setLoading(false);
     }
   };
+
+  //ログイン確認
+  const { ready } = useRequireAuth();
+
+  if (!ready) {
+    return <div className="px-6 py-6 text-sm text-slate-600">Loading...</div>;
+  }
 
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
