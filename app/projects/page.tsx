@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase/client";
 import { useRequireAuth } from "@/lib/auth/requireAuth";
@@ -37,7 +36,6 @@ const mockProjects: Project[] = [
 ];
 */
 export default function ProjectsPage() {
-  const router = useRouter();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -64,11 +62,6 @@ export default function ProjectsPage() {
 
     fetchProjects();
   }, []);
-
-  const onLogout = async () => {
-    await supabase.auth.signOut();
-    router.push("/login");
-  };
 
   //ログイン確認
   const { ready } = useRequireAuth();
