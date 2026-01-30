@@ -1,26 +1,26 @@
 "use client";
 
 import type React from "react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { supabase } from "../../../lib/supabase/client";
-import { useRequireAuth } from "@/lib/auth/requireAuth";
+import { supabase } from "@/lib/supabase/client";
+import { useProtectPage } from "@/lib/auth/useProtectPage";
 
 type ProjectStatus = "active" | "completed";
 
 export default function NewProjectPage() {
   const router = useRouter();
+  const { ready } = useProtectPage();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [status, setStatus] = useState<ProjectStatus>("active");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string>("");
 
-  const titleOk = useMemo(() => title.trim().length >= 2, [title]);
+  const titleOk = title.trim().length >= 2;
   const canSubmit = titleOk && !loading;
-
-  const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const onCreate = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!canSubmit) return;
 
@@ -28,44 +28,51 @@ export default function NewProjectPage() {
     setMessage("");
 
     try {
-      const { data: userData, error: userError } =
-        await supabase.auth.getUser();
-      if (userError) {
-        setMessage(`ユーザー取得エラー：${userError.message}`);
-        return;
-      }
+      // ① セッション取得
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
 
-      const user = userData.user;
-      if (!user) {
-        setMessage("未ログインです。ログインしてください。");
+      if (!token) {
         router.push("/login");
         return;
       }
 
-      const { error } = await supabase.from("projects").insert({
-        user_id: user.id,
-        title: title.trim(),
-        description: description.trim() === "" ? null : description.trim(),
-        status,
+      // ② API に POST
+      const res = await fetch("/api/projects", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          title: title.trim(),
+          description: description.trim() || null,
+          status,
+        }),
       });
 
-      if (error) {
-        setMessage(`保存エラー：${error.message}`);
-        return;
+      if (!res.ok) {
+        const json = await res.json();
+        throw new Error(json.error ?? "Failed to create project");
       }
 
-      setMessage("作成しました！");
       router.push("/projects");
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "作成に失敗しました");
     } finally {
       setLoading(false);
     }
   };
 
-  //ログイン確認
-  const { ready } = useRequireAuth();
-
   if (!ready) {
-    return <div className="px-6 py-6 text-sm text-slate-600">Loading...</div>;
+    return (
+      <div className="min-h-screen bg-white">
+        <main className="mx-auto max-w-5xl px-6 py-10">
+          <div className="h-10 w-60 rounded-lg bg-slate-100" />
+          <div className="mt-6 h-24 rounded-xl bg-slate-100" />
+        </main>
+      </div>
+    );
   }
 
   return (
@@ -85,7 +92,7 @@ export default function NewProjectPage() {
         </header>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <form onSubmit={onSubmit} className="space-y-5">
+          <form onSubmit={onCreate} className="space-y-5">
             <Field label="タイトル（必須）" hint="2文字以上">
               <input
                 className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-400"

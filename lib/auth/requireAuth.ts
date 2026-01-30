@@ -1,38 +1,25 @@
-"use client";
+// lib/auth/requireAuth.ts
+import { createClient } from "@supabase/supabase-js";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase/client";
+export async function requireAuth(request: Request) {
+  const auth = request.headers.get("authorization") ?? "";
+  const token = auth.startsWith("Bearer ") ? auth.slice(7) : null;
 
-type RequireAuthState = {
-  ready: boolean; // 認証チェックが終わったか
-};
+  if (!token) return null;
 
-export function useRequireAuth(): RequireAuthState {
-  const router = useRouter();
-  const [ready, setReady] = useState(false);
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      global: {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      },
+    }
+  );
 
-  useEffect(() => {
-    let mounted = true;
-
-    const run = async () => {
-      const { data, error } = await supabase.auth.getSession();
-
-      // 何か変なエラーでも、未ログイン扱いで逃がす（UX優先）
-      if (error || !data.session) {
-        router.replace("/login");
-        return;
-      }
-
-      if (mounted) setReady(true);
-    };
-
-    run();
-
-    return () => {
-      mounted = false;
-    };
-  }, [router]);
-
-  return { ready };
+  const { data, error } = await supabase.auth.getUser(token);
+  if (error || !data.user) return null;
+  return data.user;
 }

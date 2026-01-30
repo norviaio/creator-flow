@@ -1,6 +1,7 @@
 # creator-flow
 
-**creator-flow** は、個人制作者や小規模チーム向けの **コンテンツ制作進行管理ツール**です。  
+**creator-flow** は、個人制作者や小規模チーム向けの  
+**コンテンツ制作進行管理ツール（Next.js + Supabase フルスタック構成）**です。
 制作物（作品）と、制作に必要なタスクを管理し、進捗状況をシンプルに可視化することを目的としています。
 
 > 本プロジェクトは転職活動用ポートフォリオとして作成しています。
@@ -82,6 +83,28 @@
 
 ---
 
+## アーキテクチャ概要（全体構成）
+
+本アプリは Next.js（App Router）を中心に、  
+認証・データ管理を Supabase、デプロイを Vercel で構成しています。
+
+UI（Client Component）からは直接 DB を操作せず、  
+API Route を経由してデータ取得・更新を行う構成にしています。
+
+````mermaid
+flowchart TD
+    Browser[ブラウザ / UI<br>(Next.js App Router)]
+
+    Browser -->|fetch + Bearer Token| API[API Routes<br>/api/projects<br>/api/tasks]
+
+    API -->|認証チェック| Auth[Supabase Auth]
+    API -->|DB操作| DB[(Supabase Database)]
+
+    Auth --> API
+    DB --> API
+
+---
+
 ## 設計・実装のポイント
 
 ### フルスタック構成
@@ -158,7 +181,7 @@
 
 ## デモアカウント
 
-本アプリはログインが必要なため、  
+本アプリはログインが必要なため、
 以下のデモ用アカウントで動作確認が可能です。
 
 - Email: demo@creator-flow.dev
@@ -191,7 +214,7 @@ npm install
 
 # 開発サーバー起動
 npm run dev
-```
+````
 
 ---
 

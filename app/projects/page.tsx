@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { supabase } from "../../lib/supabase/client";
-import { useRequireAuth } from "@/lib/auth/requireAuth";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase/client";
+import { useProtectPage } from "@/lib/auth/useProtectPage";
 
 type Project = {
   id: string;
@@ -36,38 +37,79 @@ const mockProjects: Project[] = [
 ];
 */
 export default function ProjectsPage() {
+  const router = useRouter();
+  const { ready } = useProtectPage();
+
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    /**
+     * fetchProject
+     *
+     * プロジェクト詳細を取得するための関数。
+     *
+     * ・Supabase の session から access token を取得し、
+     *   認証済みユーザーのみ API を呼び出す
+     * ・token が無い、または API が 401 を返した場合は
+     *   未ログインとしてログインページへリダイレクトする
+     *
+     * ※ ログイン状態の管理自体は Supabase Auth が担当しており、
+     *   この関数は「認証済みであることの確認」を行っているだけ。
+     */
     const fetchProjects = async () => {
       setLoading(true);
       setError(null);
 
-      const { data, error } = await supabase
-        .from("projects")
-        .select("id,title,description,status")
-        .order("created_at", { ascending: false });
+      try {
+        // ① セッション取得
+        const { data } = await supabase.auth.getSession();
+        const accessToken = data.session?.access_token;
 
-      if (error) {
-        setError(error.message);
+        // 未ログインなら弾く
+        if (!accessToken) {
+          router.push("/login");
+          return;
+        }
+
+        // ② token を付けて API 呼び出し
+        const res = await fetch("/api/projects", {
+          cache: "no-store",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        });
+
+        if (!res.ok) {
+          if (res.status === 401) {
+            router.push("/login");
+            return;
+          }
+          throw new Error("Failed to fetch projects");
+        }
+
+        const json = await res.json();
+        setProjects(json.projects ?? []);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Unknown error");
+      } finally {
         setLoading(false);
-        return;
       }
-
-      setProjects((data ?? []) as Project[]);
-      setLoading(false);
     };
 
     fetchProjects();
-  }, []);
-
-  //ログイン確認
-  const { ready } = useRequireAuth();
+  }, [router]);
 
   if (!ready) {
-    return <div className="px-6 py-6 text-sm text-slate-600">Loading...</div>;
+    return (
+      <div className="min-h-screen bg-white">
+        <main className="mx-auto max-w-5xl px-6 py-10">
+          <div className="h-10 w-60 rounded-lg bg-slate-100" />
+          <div className="mt-6 h-24 rounded-xl bg-slate-100" />
+        </main>
+      </div>
+    );
   }
 
   return (

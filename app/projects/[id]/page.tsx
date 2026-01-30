@@ -3,9 +3,8 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "../../../lib/supabase/client";
-import { useRequireAuth } from "@/lib/auth/requireAuth";
-
+import { supabase } from "@/lib/supabase/client";
+import { useProtectPage } from "@/lib/auth/useProtectPage";
 
 type Project = {
   id: string;
@@ -64,7 +63,74 @@ const mockTasks: Task[] = [
 ];
 */
 
+type CreateTaskParams = {
+  token: string;
+  projectId: string;
+  title: string;
+};
+
+async function createTaskApi(token: string, projectId: string, title: string) {
+  const res = await fetch(`/api/tasks?projectId=${projectId}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ title }),
+  });
+
+  if (!res.ok) {
+    const json = await res.json().catch(() => ({}));
+    throw new Error(json.error ?? "タスク作成に失敗しました");
+  }
+
+  return res.json();
+}
+
+//タスク更新
+async function updateTaskApi(
+  token: string,
+  taskId: string,
+  payload: { status?: string; title?: string }
+) {
+  const res = await fetch(`/api/tasks/${taskId}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const json = await res.json().catch(() => ({}));
+    throw new Error(json.error ?? "タスク更新に失敗しました");
+  }
+
+  return res.json();
+}
+
+//タスク削除
+async function deleteTaskApi(token: string, taskId: string) {
+  console.log("taskId : " + taskId);
+  supabase.auth.getSession().then(({ data }) => {
+    console.log("TOKEN", data.session?.access_token);
+  });
+  const res = await fetch(`/api/tasks/${taskId}`, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!res.ok) {
+    const json = await res.json().catch(() => ({}));
+    throw new Error(json.error ?? "タスク削除に失敗しました");
+  }
+}
+
 export default function ProjectDetailPage() {
+  const { ready } = useProtectPage();
   const params = useParams();
   const projectId = params.id as string;
 
@@ -88,100 +154,6 @@ export default function ProjectDetailPage() {
 
   const [savingProject, setSavingProject] = useState(false);
   const [projectSaveError, setProjectSaveError] = useState<string | null>(null);
-
-  //タスク表示
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [loadingTasks, setLoadingTasks] = useState(true);
-  const [tasksError, setTasksError] = useState<string | null>(null);
-
-  //タスク追加
-  const [newTitle, setNewTitle] = useState("");
-  const [creating, setCreating] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
-  const [showTaskForm, setShowTaskForm] = useState(false);
-
-  //タスクステータス編集
-  const [updatingTaskId, setUpdatingTaskId] = useState<string | null>(null);
-  const [updateError, setUpdateError] = useState<string | null>(null);
-
-  //タスク削除
-  const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
-
-  //タスク名編集
-  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
-  const [editTaskTitle, setEditTaskTitle] = useState("");
-
-  const router = useRouter();
-
-  //タスク編集
-  const updateTaskStatus = async (taskId: string, nextStatus: TaskStatus) => {
-    setUpdateError(null);
-
-    const prev = tasks;
-    setTasks((cur) =>
-      cur.map((t) => (t.id === taskId ? { ...t, status: nextStatus } : t))
-    );
-
-    setUpdatingTaskId(taskId);
-
-    const { error } = await supabase
-      .from("tasks")
-      .update({ status: nextStatus })
-      .eq("id", taskId);
-
-    if (error) {
-      setTasks(prev);
-      setUpdateError(error.message);
-    }
-
-    setUpdatingTaskId(null);
-  };
-
-  //タスク削除
-  const deleteTask = async (taskId: string) => {
-    setDeleteError(null);
-    setDeletingTaskId(taskId);
-
-    const { error } = await supabase.from("tasks").delete().eq("id", taskId);
-
-    if (error) {
-      setDeleteError(error.message);
-      setDeletingTaskId(null);
-      return;
-    }
-
-    setTasks((cur) => cur.filter((t) => t.id !== taskId));
-    setDeletingTaskId(null);
-  };
-
-  //タスク名編集
-  const startEditTask = (task: Task) => {
-    setEditingTaskId(task.id);
-    setEditTaskTitle(task.title);
-  };
-  const saveTaskTitle = async (taskId: string) => {
-    if (!editTaskTitle.trim()) return;
-
-    const { error } = await supabase
-      .from("tasks")
-      .update({ title: editTaskTitle.trim() })
-      .eq("id", taskId);
-
-    if (error) {
-      alert(error.message);
-      return;
-    }
-
-    setTasks((cur) =>
-      cur.map((t) =>
-        t.id === taskId ? { ...t, title: editTaskTitle.trim() } : t
-      )
-    );
-
-    setEditingTaskId(null);
-    setEditTaskTitle("");
-  };
 
   //プロジェクト保存
   const saveProject = async () => {
@@ -218,9 +190,269 @@ export default function ProjectDetailPage() {
     setSavingProject(false);
   };
 
-  useEffect(() => {
-    const run = async () => {
+  //タスク表示
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loadingTasks, setLoadingTasks] = useState(true);
+  const [tasksError, setTasksError] = useState<string | null>(null);
 
+  //タスク追加
+  const [newTitle, setNewTitle] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [showTaskForm, setShowTaskForm] = useState(false);
+
+  //タスクステータス編集
+  const [updatingTaskId, setUpdatingTaskId] = useState<string | null>(null);
+  const [updateError, setUpdateError] = useState<string | null>(null);
+
+  //タスク削除
+  const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  //タスク名編集
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [editTaskTitle, setEditTaskTitle] = useState("");
+
+  const router = useRouter();
+
+  // TODO: remove direct supabase access
+  //タスク編集
+  /*
+  const updateTaskStatus = async (taskId: string, nextStatus: TaskStatus) => {
+    setUpdateError(null);
+
+    const prev = tasks;
+    setTasks((cur) =>
+      cur.map((t) => (t.id === taskId ? { ...t, status: nextStatus } : t))
+    );
+
+    setUpdatingTaskId(taskId);
+
+    const { error } = await supabase
+      .from("tasks")
+      .update({ status: nextStatus })
+      .eq("id", taskId);
+
+    if (error) {
+      setTasks(prev);
+      setUpdateError(error.message);
+    }
+
+    setUpdatingTaskId(null);
+  };
+*/
+  // TODO: remove direct supabase access
+  //タスク削除
+  /*
+  const deleteTask = async (taskId: string) => {
+    setDeleteError(null);
+    setDeletingTaskId(taskId);
+
+    const { error } = await supabase.from("tasks").delete().eq("id", taskId);
+
+    if (error) {
+      setDeleteError(error.message);
+      setDeletingTaskId(null);
+      return;
+    }
+
+    setTasks((cur) => cur.filter((t) => t.id !== taskId));
+    setDeletingTaskId(null);
+  };
+*/
+
+  //タスク名編集
+  const startEditTask = (task: Task) => {
+    setEditingTaskId(task.id);
+    setEditTaskTitle(task.title);
+  };
+  const saveTaskTitle = async (taskId: string) => {
+    if (!editTaskTitle.trim()) return;
+
+    const { error } = await supabase
+      .from("tasks")
+      .update({ title: editTaskTitle.trim() })
+      .eq("id", taskId);
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    setTasks((cur) =>
+      cur.map((t) =>
+        t.id === taskId ? { ...t, title: editTaskTitle.trim() } : t
+      )
+    );
+
+    setEditingTaskId(null);
+    setEditTaskTitle("");
+  };
+
+  //タスク編集
+  const updateTaskStatus = async (taskId: string, status: TaskStatus) => {
+    setUpdatingTaskId(taskId);
+
+    try {
+      // ① token 取得
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+
+      if (!token) {
+        router.push("/login");
+        return;
+      }
+
+      // ② APIで更新
+      await updateTaskApi(token, taskId, { status });
+
+      // ③ 再取得（今の表示を最新に揃える）
+      await fetchTasks(); // ← すでにある取得関数を呼ぶ
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "更新に失敗しました");
+    } finally {
+      setUpdatingTaskId(null);
+    }
+  };
+
+  //タスク削除
+  const deleteTask = async (taskId: string) => {
+    setDeletingTaskId(taskId);
+
+    try {
+      // ① token 取得
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+
+      if (!token) {
+        router.push("/login");
+        return;
+      }
+
+      // ② APIで削除
+      await deleteTaskApi(token, taskId);
+
+      // ③ 再取得（表示を最新に）
+      await fetchTasks();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "削除に失敗しました");
+    } finally {
+      setDeletingTaskId(null);
+    }
+  };
+
+  /**
+   * fetchTasks
+   * タスク詳細を取得するための関数。
+   */
+  const fetchTasks = async () => {
+    setLoadingTasks(true);
+    setTasksError(null);
+
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+
+    if (!token) {
+      router.push("/login");
+      return;
+    }
+
+    const res = await fetch(`/api/tasks?projectId=${projectId}`, {
+      cache: "no-store",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!res.ok) {
+      if (res.status === 401) {
+        router.push("/login");
+        return;
+      }
+      const json = await res.json().catch(() => ({}));
+      setTasksError(json.error ?? "Failed to fetch tasks");
+      setLoadingTasks(false);
+      return;
+    }
+
+    const json = await res.json();
+    setTasks(json.tasks ?? []);
+    setLoadingTasks(false);
+  };
+
+  const onCreateTask = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTitle.trim() || creating) return;
+
+    setCreating(true);
+    setCreateError(null);
+
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) {
+        throw new Error("未ログインです");
+      }
+
+      await createTaskApi(token, projectId, newTitle.trim());
+
+      await fetchTasks();
+      setNewTitle("");
+      setShowTaskForm(false);
+    } catch (err) {
+      setCreateError(err instanceof Error ? err.message : "作成に失敗しました");
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  useEffect(() => {
+    /**
+     * fetchProject
+     *
+     * プロジェクト詳細を取得するための関数。
+     *
+     * ・Supabase の session から access token を取得し、
+     *   認証済みユーザーのみ API を呼び出す
+     * ・token が無い、または API が 401 を返した場合は
+     *   未ログインとしてログインページへリダイレクトする
+     *
+     * ※ ログイン状態の管理自体は Supabase Auth が担当しており、
+     *   この関数は「認証済みであることの確認」を行っているだけ。
+     */
+    const fetchProject = async () => {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+
+      if (!token) {
+        router.push("/login");
+        return;
+      }
+
+      const res = await fetch(`/api/projects?id=${projectId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!res.ok) {
+        if (res.status === 401) {
+          router.push("/login");
+          return;
+        }
+        throw new Error("Failed to fetch project");
+      }
+
+      const json = await res.json();
+      setProject(json.project ?? null);
+    };
+    fetchProject();
+    if (!projectId) return;
+
+    //タスク取得
+    fetchTasks();
+
+    const run = async () => {
       // 2) project取得（RLSにより自分のものだけ取れる）
       setLoadingProject(true);
       setProjectError(null);
@@ -300,11 +532,15 @@ export default function ProjectDetailPage() {
     return base;
   }, [tasks]);
 
-  //ログイン確認
-  const { ready } = useRequireAuth();
-
   if (!ready) {
-    return <div className="px-6 py-6 text-sm text-slate-600">Loading...</div>;
+    return (
+      <div className="min-h-screen bg-white">
+        <main className="mx-auto max-w-5xl px-6 py-10">
+          <div className="h-10 w-60 rounded-lg bg-slate-100" />
+          <div className="mt-6 h-24 rounded-xl bg-slate-100" />
+        </main>
+      </div>
+    );
   }
 
   // TODO: mock削除
@@ -331,7 +567,11 @@ export default function ProjectDetailPage() {
   if (loadingProject) {
     return (
       <main className="min-h-screen bg-slate-50 px-6 py-12">
-        <p className="text-slate-600">読み込み中...</p>
+        <div className="mx-auto max-w-5xl">
+          <div className="h-8 w-60 rounded-lg bg-slate-200" />
+          <div className="mt-4 h-4 w-80 rounded bg-slate-200" />
+          <div className="mt-10 h-64 rounded-xl bg-slate-200" />
+        </div>
       </main>
     );
   }
@@ -481,50 +721,7 @@ export default function ProjectDetailPage() {
           <div className="overflow-hidden">
             {showTaskForm ? (
               <>
-                <form
-                  onSubmit={async (e) => {
-                    e.preventDefault();
-                    if (!newTitle.trim() || creating) return;
-
-                    setCreating(true);
-                    setCreateError(null);
-
-                    const { error } = await supabase.from("tasks").insert({
-                      project_id: projectId,
-                      title: newTitle.trim(),
-                      status: "backlog",
-                    });
-
-                    if (error) {
-                      setCreateError(error.message);
-                      setCreating(false);
-                      return;
-                    }
-
-                    const { data } = await supabase
-                      .from("tasks")
-                      .select("id,project_id,title,status")
-                      .eq("project_id", projectId)
-                      .order("created_at", { ascending: true });
-
-                    const normalized: Task[] = (data ?? []).map(
-                      (t: TaskRow) => ({
-                        id: t.id,
-                        projectId: t.project_id,
-                        title: t.title,
-                        status: t.status,
-                      })
-                    ) as Task[];
-
-                    setTasks(normalized);
-                    setNewTitle("");
-                    setCreating(false);
-
-                    setNewTitle("");
-                    setShowTaskForm(false);
-                  }}
-                  className="mb-4 flex gap-2"
-                >
+                <form onSubmit={onCreateTask} className="mb-4 flex gap-2">
                   <input
                     type="text"
                     value={newTitle}
