@@ -23,13 +23,6 @@ type Task = {
   status: TaskStatus;
 };
 
-type TaskRow = {
-  id: string;
-  project_id: string;
-  title: string;
-  status: TaskStatus;
-};
-
 // TODO: mockProjects削除（詳細ページの実データ化が安定したら）
 /* 
 const mockProjects: Project[] = [
@@ -62,12 +55,6 @@ const mockTasks: Task[] = [
   { id: "t7", projectId: "3", title: "企画案出し", status: "done" },
 ];
 */
-
-type CreateTaskParams = {
-  token: string;
-  projectId: string;
-  title: string;
-};
 
 async function createTaskApi(token: string, projectId: string, title: string) {
   const res = await fetch(`/api/tasks?projectId=${projectId}`, {
