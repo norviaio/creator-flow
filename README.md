@@ -100,16 +100,17 @@ UI から Supabase を直接操作する構成ではなく、
 
 ````mermaid
 flowchart TD
-    Browser["ブラウザ(UI)<br>Next.js App Router"]
-    API["API Routes<br>/api/projects<br>/api/tasks"]
-    Auth["Supabase Auth"]
-    DB["Supabase Database"]
+  Browser["ブラウザ(UI)<br>Next.js App Router"]
+  API["API Routes<br>/api/projects<br>/api/tasks"]
+  Auth["Supabase Auth"]
+  DB["Supabase Database"]
 
-    Browser -->|"fetch + Bearer Token"| API
-    API -->|"認証チェック"| Auth
-    API -->|"DB操作"| DB
-    Auth --> API
-    DB --> API
+  Browser -->|"fetch + Bearer Token"| API
+  API -->|"認証チェック"| Auth
+  API -->|"DB操作"| DB
+  Auth --> API
+  DB --> API
+````
 
 ### API Routes（抜粋）
 
