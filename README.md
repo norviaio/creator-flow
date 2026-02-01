@@ -97,8 +97,10 @@
 UI から Supabase を直接操作する構成ではなく、  
 将来的な拡張（権限管理・監査・外部連携）を見据えて  
 すべてのデータ操作を API Route 経由に統一しています。
+API Routes は認証チェックとデータ操作の責務を担い、
+UI と Supabase の依存を分離しています。
 
-````mermaid
+```mermaid
 flowchart TD
   Browser["ブラウザ(UI)<br>Next.js App Router"]
   API["API Routes<br>/api/projects<br>/api/tasks"]
@@ -110,7 +112,7 @@ flowchart TD
   API -->|"DB操作"| DB
   Auth --> API
   DB --> API
-````
+```
 
 ### API Routes（抜粋）
 
@@ -235,7 +237,7 @@ npm install
 
 # 開発サーバー起動
 npm run dev
-````
+```
 
 ---
 
