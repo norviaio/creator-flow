@@ -81,6 +81,12 @@
 - **Backend / BaaS**：Supabase（PostgreSQL / Auth / RLS）
 - **Version Control**：GitHub
 
+### TypeScript
+
+- Next.js 全体を TypeScript で実装
+- API / フロント / DB 型を明示的に分離
+- any を使わず、コンパイル時に不整合を検知できる構成
+
 ---
 
 ## アーキテクチャ概要（全体構成）
@@ -88,20 +94,33 @@
 本アプリは Next.js（App Router）を中心に、  
 認証・データ管理を Supabase、デプロイを Vercel で構成しています。
 
-UI（Client Component）からは直接 DB を操作せず、  
-API Route を経由してデータ取得・更新を行う構成にしています。
+UI から Supabase を直接操作する構成ではなく、  
+将来的な拡張（権限管理・監査・外部連携）を見据えて  
+すべてのデータ操作を API Route 経由に統一しています。
 
 ````mermaid
 flowchart TD
-    Browser[ブラウザ / UI<br>(Next.js App Router)]
+    Browser["ブラウザ(UI)<br>Next.js App Router"]
+    API["API Routes<br>/api/projects<br>/api/tasks"]
+    Auth["Supabase Auth"]
+    DB["Supabase Database"]
 
-    Browser -->|fetch + Bearer Token| API[API Routes<br>/api/projects<br>/api/tasks]
-
-    API -->|認証チェック| Auth[Supabase Auth]
-    API -->|DB操作| DB[(Supabase Database)]
-
+    Browser -->|"fetch + Bearer Token"| API
+    API -->|"認証チェック"| Auth
+    API -->|"DB操作"| DB
     Auth --> API
     DB --> API
+
+### API Routes（抜粋）
+
+- GET /api/projects
+- POST /api/projects
+- GET /api/projects/[id]
+
+- GET /api/tasks?projectId=
+- POST /api/tasks
+- PATCH /api/tasks/[id]
+- DELETE /api/tasks/[id]
 
 ---
 
@@ -160,6 +179,7 @@ flowchart TD
 
    - 作品（Project）の一覧表示
    - 作成 / 編集 / 削除
+   - 制作全体の進捗を俯瞰するための画面
 
 4. **作品詳細**
 
